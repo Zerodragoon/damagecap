@@ -1,0 +1,56 @@
+<?xml version="1.1" ?>
+<settings>
+    <global>
+        <bg>
+            <alpha>255</alpha>
+            <blue>0</blue>
+            <green>0</green>
+            <red>0</red>
+            <visible>true</visible>
+        </bg>
+        <flags>
+            <bold>false</bold>
+            <bottom>false</bottom>
+            <draggable>true</draggable>
+            <italic>false</italic>
+            <right>false</right>
+        </flags>
+        <melee>true</melee>
+        <padding>0</padding>
+        <pos>
+            <x>0</x>
+            <y>0</y>
+        </pos>
+        <position>
+            <x>100</x>
+            <y>100</y>
+        </position>
+        <ranged>true</ranged>
+        <text>
+            <alpha>255</alpha>
+            <blue>255</blue>
+            <font>Arial</font>
+            <fonts>
+
+            </fonts>
+            <green>255</green>
+            <red>255</red>
+            <size>10</size>
+            <stroke>
+                <alpha>255</alpha>
+                <blue>0</blue>
+                <green>0</green>
+                <red>0</red>
+                <width>0</width>
+            </stroke>
+        </text>
+        <visible>true</visible>
+        <ws>true</ws>
+    </global>
+    <zerodragoon>
+        <pos>
+            <x>2477</x>
+            <y>621</y>
+        </pos>
+    </zerodragoon>
+</settings>
