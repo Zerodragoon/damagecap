@@ -47,10 +47,4 @@
         <visible>true</visible>
         <ws>true</ws>
     </global>
-    <zerodragoon>
-        <pos>
-            <x>2477</x>
-            <y>621</y>
-        </pos>
-    </zerodragoon>
 </settings>

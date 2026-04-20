@@ -74,6 +74,9 @@ local enemy_data = T{
 
 local player = nil
 local target = nil
+local last_target_data = nil  -- Stores data from the last target before change
+local target_history = T{}  -- Stores the last 50 targets
+local MAX_HISTORY = 50
 
 function get_player_attack()
     if not player or not player.vitals then return 0 end
@@ -195,11 +198,73 @@ function show_help()
     windower.add_to_chat(207, '  damagecap ranged - Toggles ranged damage tracking display')
     windower.add_to_chat(207, '  damagecap ws - Toggles weapon skill damage tracking display')
     windower.add_to_chat(207, '  damagecap reset - Resets all damage data')
+    windower.add_to_chat(207, '  damagecap history - Shows the last 50 targets fought')
     windower.add_to_chat(207, ' ')
     windower.add_to_chat(207, 'Display shows:')
     windower.add_to_chat(207, '  CAPPED - Damage variance <= 7% (likely damage capped)')
     windower.add_to_chat(207, '  Uncapped - Damage has room to grow')
     windower.add_to_chat(207, ' ')
+end
+
+function show_history()
+    if #target_history == 0 then
+        windower.add_to_chat(207, 'No target history yet.')
+        return
+    end
+    windower.add_to_chat(207, '=== Target History (Last 50) ===')
+    for i = #target_history, 1, -1 do
+        local entry = target_history[i]
+        local num = #target_history - i + 1
+        windower.add_to_chat(207, string.format('%d. %s (Lvl %d)', num, entry.name or 'Unknown', entry.level or 0))
+        
+        -- Check if damage_data exists
+        if not entry.damage_data then
+            windower.add_to_chat(207, '   No damage data recorded')
+        else
+            -- Display melee damage cap status
+            if entry.damage_data.melee and (entry.damage_data.melee.crit.count > 0 or entry.damage_data.melee.non_crit.count > 0) then
+                windower.add_to_chat(207, '   Melee:')
+                if entry.damage_data.melee.crit and entry.damage_data.melee.crit.count > 0 then
+                    local var = entry.damage_data.melee.crit.max_damage - entry.damage_data.melee.crit.min_damage
+                    local var_pct = entry.damage_data.melee.crit.min_damage > 0 and (var / entry.damage_data.melee.crit.min_damage * 100) or 0
+                    local capped = is_capped(entry.damage_data.melee.crit, var_pct)
+                    windower.add_to_chat(207, string.format('     Crit: %s | Avg: %d | Count: %d', capped and 'CAPPED' or 'Uncapped', math.floor(entry.damage_data.melee.crit.avg or 0), entry.damage_data.melee.crit.count or 0))
+                end
+                if entry.damage_data.melee.non_crit and entry.damage_data.melee.non_crit.count > 0 then
+                    local var = entry.damage_data.melee.non_crit.max_damage - entry.damage_data.melee.non_crit.min_damage
+                    local var_pct = entry.damage_data.melee.non_crit.min_damage > 0 and (var / entry.damage_data.melee.non_crit.min_damage * 100) or 0
+                    local capped = is_capped(entry.damage_data.melee.non_crit, var_pct)
+                    windower.add_to_chat(207, string.format('     Non-Crit: %s | Avg: %d | Count: %d', capped and 'CAPPED' or 'Uncapped', math.floor(entry.damage_data.melee.non_crit.avg or 0), entry.damage_data.melee.non_crit.count or 0))
+                end
+            end
+            
+            -- Display ranged damage cap status
+            if entry.damage_data.ranged and (entry.damage_data.ranged.crit.count > 0 or entry.damage_data.ranged.non_crit.count > 0) then
+                windower.add_to_chat(207, '   Ranged:')
+                if entry.damage_data.ranged.crit and entry.damage_data.ranged.crit.count > 0 then
+                    local var = entry.damage_data.ranged.crit.max_damage - entry.damage_data.ranged.crit.min_damage
+                    local var_pct = entry.damage_data.ranged.crit.min_damage > 0 and (var / entry.damage_data.ranged.crit.min_damage * 100) or 0
+                    local capped = is_capped(entry.damage_data.ranged.crit, var_pct)
+                    windower.add_to_chat(207, string.format('     Crit: %s | Avg: %d | Count: %d', capped and 'CAPPED' or 'Uncapped', math.floor(entry.damage_data.ranged.crit.avg or 0), entry.damage_data.ranged.crit.count or 0))
+                end
+                if entry.damage_data.ranged.non_crit and entry.damage_data.ranged.non_crit.count > 0 then
+                    local var = entry.damage_data.ranged.non_crit.max_damage - entry.damage_data.ranged.non_crit.min_damage
+                    local var_pct = entry.damage_data.ranged.non_crit.min_damage > 0 and (var / entry.damage_data.ranged.non_crit.min_damage * 100) or 0
+                    local capped = is_capped(entry.damage_data.ranged.non_crit, var_pct)
+                    windower.add_to_chat(207, string.format('     Non-Crit: %s | Avg: %d | Count: %d', capped and 'CAPPED' or 'Uncapped', math.floor(entry.damage_data.ranged.non_crit.avg or 0), entry.damage_data.ranged.non_crit.count or 0))
+                end
+            end
+            
+            -- Display WS damage cap status
+            if entry.damage_data.ws and entry.damage_data.ws.count > 0 then
+                windower.add_to_chat(207, '   Weapon Skill:')
+                local var = entry.damage_data.ws.max_damage - entry.damage_data.ws.min_damage
+                local var_pct = entry.damage_data.ws.min_damage > 0 and (var / entry.damage_data.ws.min_damage * 100) or 0
+                local capped = is_capped(entry.damage_data.ws, var_pct)
+                windower.add_to_chat(207, string.format('     %s | Avg: %d | Count: %d', capped and 'CAPPED' or 'Uncapped', math.floor(entry.damage_data.ws.avg or 0), entry.damage_data.ws.count or 0))
+            end
+        end
+    end
 end
 
 function update_display()
@@ -260,6 +325,8 @@ windower.register_event('addon command', function(command, ...)
     command = command:lower()
     if command == 'help' or command == '?' then
         show_help()
+    elseif command == 'history' then
+        show_history()
     elseif command == 'show' or command == 'hide' then
         settings.visible = not settings.visible
         update_display()
@@ -373,6 +440,44 @@ windower.register_event('action', function(act)
 end)
 
 windower.register_event('target change', function(new_target)
+    -- Check if the mob ID has actually changed
+    if target and target == new_target then
+        return
+    end
+    
+    -- Deep copy function
+    local function deep_copy(obj)
+        local copy = T{}
+        for k, v in pairs(obj) do
+            if type(v) == 'table' then
+                copy[k] = deep_copy(v)
+            else
+                copy[k] = v
+            end
+        end
+        return copy
+    end
+    
+    -- Check if current target had any damage data, and if so, save it to history
+    if last_target_data then
+        -- Check if any damage was actually recorded
+        local has_damage = last_target_data.damage_data.melee.crit.count > 0 or 
+                          last_target_data.damage_data.melee.non_crit.count > 0 or
+                          last_target_data.damage_data.ranged.crit.count > 0 or
+                          last_target_data.damage_data.ranged.non_crit.count > 0 or
+                          last_target_data.damage_data.ws.count > 0
+        
+        if has_damage then
+            table.insert(target_history, last_target_data)
+            
+            -- Keep only the last MAX_HISTORY entries
+            if #target_history > MAX_HISTORY then
+                table.remove(target_history, 1)
+            end
+        end
+    end
+    
+    -- Switch to new target
     target = new_target
     if target then
         local tar = windower.ffxi.get_mob_by_id(target)
@@ -381,5 +486,26 @@ windower.register_event('target change', function(new_target)
             enemy_data.name = tar.name
         end
     end
+    
+    -- Save current target info and prepare for next fight
+    last_target_data = T{
+        name = enemy_data.name,
+        level = enemy_data.level,
+        damage_data = deep_copy(damage_data)
+    }
+    
+    -- Reset damage data for new target
+    damage_data = T{
+        melee = T{
+            crit = T{ capped = false, pdif = 0, max_damage = 0, min_damage = 99999, count = 0, sum = 0, avg = 0 },
+            non_crit = T{ capped = false, pdif = 0, max_damage = 0, min_damage = 99999, count = 0, sum = 0, avg = 0 },
+        },
+        ranged = T{
+            crit = T{ capped = false, pdif = 0, max_damage = 0, min_damage = 99999, count = 0, sum = 0, avg = 0 },
+            non_crit = T{ capped = false, pdif = 0, max_damage = 0, min_damage = 99999, count = 0, sum = 0, avg = 0 },
+        },
+        ws = T{ capped = false, pdif = 0, max_damage = 0, min_damage = 99999, count = 0, sum = 0, avg = 0 },
+    }
+    
     update_display()
 end)
