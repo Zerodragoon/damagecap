@@ -42,7 +42,6 @@ Since we don't know the enemy's defense, the addon infers attack cap status thro
 
 1. **At Attack Cap**: Damage hits a ceiling determined by enemy DEF. With the 5% randomizer, damage variance will be about 5%.
 2. **Below Attack Cap**: Damage scales with your attack. Variance will be higher (more spread), and adding attack buffs will increase average damage.
-3. **PDIF Calculation**: PDIF is approximated as Average Damage / (Base Damage * Multiplier)
 
 ## Installation
 

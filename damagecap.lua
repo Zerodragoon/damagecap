@@ -1,5 +1,5 @@
 _addon.name = 'DamageCap'
-_addon.author = 'AI Assistant'
+_addon.author = 'Zerodragoon'
 _addon.version = '1.0'
 _addon.commands = {'damagecap', 'dc'}
 
@@ -56,8 +56,14 @@ function get_weapon_rank(skill_id)
 end
 
 local damage_data = T{
-    melee = T{ capped = false, pdif = 0, max_damage = 0, min_damage = 99999, count = 0, sum = 0, avg = 0 },
-    ranged = T{ capped = false, pdif = 0, max_damage = 0, min_damage = 99999, count = 0, sum = 0, avg = 0 },
+    melee = T{
+        crit = T{ capped = false, pdif = 0, max_damage = 0, min_damage = 99999, count = 0, sum = 0, avg = 0 },
+        non_crit = T{ capped = false, pdif = 0, max_damage = 0, min_damage = 99999, count = 0, sum = 0, avg = 0 },
+    },
+    ranged = T{
+        crit = T{ capped = false, pdif = 0, max_damage = 0, min_damage = 99999, count = 0, sum = 0, avg = 0 },
+        non_crit = T{ capped = false, pdif = 0, max_damage = 0, min_damage = 99999, count = 0, sum = 0, avg = 0 },
+    },
     ws = T{ capped = false, pdif = 0, max_damage = 0, min_damage = 99999, count = 0, sum = 0, avg = 0 },
 }
 
@@ -178,6 +184,24 @@ function is_capped(damage_type_data, variance_pct)
     return false
 end
 
+function show_help()
+    windower.add_to_chat(207, '=== DamageCap Help ===')
+    windower.add_to_chat(207, 'DamageCap tracks and displays damage cap status for different attack types.')
+    windower.add_to_chat(207, ' ')
+    windower.add_to_chat(207, 'Commands:')
+    windower.add_to_chat(207, '  damagecap help/? - Shows this help message')
+    windower.add_to_chat(207, '  damagecap show/hide - Toggles display visibility')
+    windower.add_to_chat(207, '  damagecap melee - Toggles melee damage tracking display')
+    windower.add_to_chat(207, '  damagecap ranged - Toggles ranged damage tracking display')
+    windower.add_to_chat(207, '  damagecap ws - Toggles weapon skill damage tracking display')
+    windower.add_to_chat(207, '  damagecap reset - Resets all damage data')
+    windower.add_to_chat(207, ' ')
+    windower.add_to_chat(207, 'Display shows:')
+    windower.add_to_chat(207, '  CAPPED - Damage variance <= 7% (likely damage capped)')
+    windower.add_to_chat(207, '  Uncapped - Damage has room to grow')
+    windower.add_to_chat(207, ' ')
+end
+
 function update_display()
     if not player then
         display:text('DamageCap: Initializing...')
@@ -192,16 +216,24 @@ function update_display()
     local text = 'Enemy: ' .. enemy_name .. ' (Lvl ' .. enemy_level .. ')\n'
     
     if settings.melee then
-        local var = damage_data.melee.max_damage - damage_data.melee.min_damage
-        local var_pct = damage_data.melee.min_damage > 0 and (var / damage_data.melee.min_damage * 100) or 0
-        local capped = is_capped(damage_data.melee, var_pct)
-        text = text .. 'Melee: ' .. (capped and 'CAPPED' or 'Uncapped') .. ' | Count: ' .. damage_data.melee.count .. ' | Avg: ' .. math.floor(damage_data.melee.avg) .. ' | Min: ' .. damage_data.melee.min_damage .. ' Max: ' .. damage_data.melee.max_damage .. ' (' .. string.format('%.1f%%', var_pct) .. ')\n'
+        for _, hit_type in ipairs({'non_crit', 'crit'}) do
+            local data = damage_data.melee[hit_type]
+            local var = data.max_damage - data.min_damage
+            local var_pct = data.min_damage > 0 and (var / data.min_damage * 100) or 0
+            local capped = is_capped(data, var_pct)
+            local label = hit_type == 'crit' and 'Melee Crit' or 'Melee Non-Crit'
+            text = text .. label .. ': ' .. (capped and 'CAPPED' or 'Uncapped') .. ' | Count: ' .. data.count .. ' | Avg: ' .. math.floor(data.avg) .. ' | Min: ' .. data.min_damage .. ' Max: ' .. data.max_damage .. ' (' .. string.format('%.1f%%', var_pct) .. ')\n'
+        end
     end
     if settings.ranged then
-        local var = damage_data.ranged.max_damage - damage_data.ranged.min_damage
-        local var_pct = damage_data.ranged.min_damage > 0 and (var / damage_data.ranged.min_damage * 100) or 0
-        local capped = is_capped(damage_data.ranged, var_pct)
-        text = text .. 'Ranged: ' .. (capped and 'CAPPED' or 'Uncapped') .. ' | Count: ' .. damage_data.ranged.count .. ' | Avg: ' .. math.floor(damage_data.ranged.avg) .. ' | Min: ' .. damage_data.ranged.min_damage .. ' Max: ' .. damage_data.ranged.max_damage .. ' (' .. string.format('%.1f%%', var_pct) .. ')\n'
+        for _, hit_type in ipairs({'non_crit', 'crit'}) do
+            local data = damage_data.ranged[hit_type]
+            local var = data.max_damage - data.min_damage
+            local var_pct = data.min_damage > 0 and (var / data.min_damage * 100) or 0
+            local capped = is_capped(data, var_pct)
+            local label = hit_type == 'crit' and 'Ranged Crit' or 'Ranged Non-Crit'
+            text = text .. label .. ': ' .. (capped and 'CAPPED' or 'Uncapped') .. ' | Count: ' .. data.count .. ' | Avg: ' .. math.floor(data.avg) .. ' | Min: ' .. data.min_damage .. ' Max: ' .. data.max_damage .. ' (' .. string.format('%.1f%%', var_pct) .. ')\n'
+        end
     end
     if settings.ws then
         local var = damage_data.ws.max_damage - damage_data.ws.min_damage
@@ -226,7 +258,9 @@ end)
 windower.register_event('addon command', function(command, ...)
     local args = {...}
     command = command:lower()
-    if command == 'show' or command == 'hide' then
+    if command == 'help' or command == '?' then
+        show_help()
+    elseif command == 'show' or command == 'hide' then
         settings.visible = not settings.visible
         update_display()
     elseif command == 'melee' then
@@ -240,8 +274,14 @@ windower.register_event('addon command', function(command, ...)
         update_display()
     elseif command == 'reset' then
         damage_data = T{
-            melee = T{ capped = false, pdif = 0, max_damage = 0, min_damage = 99999, count = 0, sum = 0, avg = 0 },
-            ranged = T{ capped = false, pdif = 0, max_damage = 0, min_damage = 99999, count = 0, sum = 0, avg = 0 },
+            melee = T{
+                crit = T{ capped = false, pdif = 0, max_damage = 0, min_damage = 99999, count = 0, sum = 0, avg = 0 },
+                non_crit = T{ capped = false, pdif = 0, max_damage = 0, min_damage = 99999, count = 0, sum = 0, avg = 0 },
+            },
+            ranged = T{
+                crit = T{ capped = false, pdif = 0, max_damage = 0, min_damage = 99999, count = 0, sum = 0, avg = 0 },
+                non_crit = T{ capped = false, pdif = 0, max_damage = 0, min_damage = 99999, count = 0, sum = 0, avg = 0 },
+            },
             ws = T{ capped = false, pdif = 0, max_damage = 0, min_damage = 99999, count = 0, sum = 0, avg = 0 },
         }
         update_display()
@@ -268,15 +308,22 @@ windower.register_event('action', function(act)
     if act.category == 1 then -- Melee
         for _, target in ipairs(act.targets) do
             for _, action in ipairs(target.actions) do
-                if action.message == 1 or action.message == 67 then -- Hit or crit
+                local hit_type
+                if action.message == 1 then
+                    hit_type = 'non_crit'
+                elseif action.message == 67 then
+                    hit_type = 'crit'
+                end
+                if hit_type then
                     local damage = action.param
-                    damage_data.melee.max_damage = math.max(damage_data.melee.max_damage, damage)
+                    local data = damage_data.melee[hit_type]
+                    data.max_damage = math.max(data.max_damage, damage)
                     if damage > 0 then
-                        damage_data.melee.min_damage = math.min(damage_data.melee.min_damage, damage)
-                        damage_data.melee.count = damage_data.melee.count + 1
-                        damage_data.melee.sum = damage_data.melee.sum + damage
-                        damage_data.melee.avg = damage_data.melee.sum / damage_data.melee.count
-                        damage_data.melee.pdif = calculate_pdif(damage_data.melee.avg, base_dmg, multiplier)
+                        data.min_damage = math.min(data.min_damage, damage)
+                        data.count = data.count + 1
+                        data.sum = data.sum + damage
+                        data.avg = data.sum / data.count
+                        data.pdif = calculate_pdif(data.avg, base_dmg, multiplier)
                     end
                 end
             end
@@ -284,15 +331,23 @@ windower.register_event('action', function(act)
     elseif act.category == 2 then -- Ranged
         for _, target in ipairs(act.targets) do
             for _, action in ipairs(target.actions) do
-                if action.message == 352 or action.message == 353 then -- Ranged hit
+                local hit_type
+                if action.message == 352 then
+                    hit_type = 'non_crit'
+                elseif action.message == 353 then
+                    hit_type = 'crit'
+                end
+                
+                if hit_type then
                     local damage = action.param
-                    damage_data.ranged.max_damage = math.max(damage_data.ranged.max_damage, damage)
+                    local data = damage_data.ranged[hit_type]
+                    data.max_damage = math.max(data.max_damage, damage)
                     if damage > 0 then
-                        damage_data.ranged.min_damage = math.min(damage_data.ranged.min_damage, damage)
-                        damage_data.ranged.count = damage_data.ranged.count + 1
-                        damage_data.ranged.sum = damage_data.ranged.sum + damage
-                        damage_data.ranged.avg = damage_data.ranged.sum / damage_data.ranged.count
-                        damage_data.ranged.pdif = calculate_pdif(damage_data.ranged.avg, base_dmg, multiplier)
+                        data.min_damage = math.min(data.min_damage, damage)
+                        data.count = data.count + 1
+                        data.sum = data.sum + damage
+                        data.avg = data.sum / data.count
+                        data.pdif = calculate_pdif(data.avg, base_dmg, multiplier)
                     end
                 end
             end
