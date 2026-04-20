@@ -128,13 +128,13 @@ function show_history()
                     local var = entry.damage_data.melee.crit.max_damage - entry.damage_data.melee.crit.min_damage
                     local var_pct = entry.damage_data.melee.crit.min_damage > 0 and (var / entry.damage_data.melee.crit.min_damage * 100) or 0
                     local capped = is_capped(entry.damage_data.melee.crit, var_pct)
-                    windower.add_to_chat(207, string.format('     Crit: %s | Avg: %d | Count: %d', capped and 'CAPPED' or 'Uncapped', math.floor(entry.damage_data.melee.crit.avg or 0), entry.damage_data.melee.crit.count or 0))
+                    windower.add_to_chat(207, string.format('     Crit: %s | Avg: %d | Min: %d | Max: %d | Count: %d', capped and 'CAPPED' or 'Uncapped', math.floor(entry.damage_data.melee.crit.avg or 0), entry.damage_data.melee.crit.min_damage or 0, entry.damage_data.melee.crit.max_damage or 0, entry.damage_data.melee.crit.count or 0))
                 end
                 if entry.damage_data.melee.non_crit and entry.damage_data.melee.non_crit.count > 0 then
                     local var = entry.damage_data.melee.non_crit.max_damage - entry.damage_data.melee.non_crit.min_damage
                     local var_pct = entry.damage_data.melee.non_crit.min_damage > 0 and (var / entry.damage_data.melee.non_crit.min_damage * 100) or 0
                     local capped = is_capped(entry.damage_data.melee.non_crit, var_pct)
-                    windower.add_to_chat(207, string.format('     Non-Crit: %s | Avg: %d | Count: %d', capped and 'CAPPED' or 'Uncapped', math.floor(entry.damage_data.melee.non_crit.avg or 0), entry.damage_data.melee.non_crit.count or 0))
+                    windower.add_to_chat(207, string.format('     Non-Crit: %s | Avg: %d | Min: %d | Max: %d | Count: %d', capped and 'CAPPED' or 'Uncapped', math.floor(entry.damage_data.melee.non_crit.avg or 0), entry.damage_data.melee.non_crit.min_damage or 0, entry.damage_data.melee.non_crit.max_damage or 0, entry.damage_data.melee.non_crit.count or 0))
                 end
             end
             
@@ -145,13 +145,13 @@ function show_history()
                     local var = entry.damage_data.ranged.crit.max_damage - entry.damage_data.ranged.crit.min_damage
                     local var_pct = entry.damage_data.ranged.crit.min_damage > 0 and (var / entry.damage_data.ranged.crit.min_damage * 100) or 0
                     local capped = is_capped(entry.damage_data.ranged.crit, var_pct)
-                    windower.add_to_chat(207, string.format('     Crit: %s | Avg: %d | Count: %d', capped and 'CAPPED' or 'Uncapped', math.floor(entry.damage_data.ranged.crit.avg or 0), entry.damage_data.ranged.crit.count or 0))
+                    windower.add_to_chat(207, string.format('     Crit: %s | Avg: %d | Min: %d | Max: %d | Count: %d', capped and 'CAPPED' or 'Uncapped', math.floor(entry.damage_data.ranged.crit.avg or 0), entry.damage_data.ranged.crit.min_damage or 0, entry.damage_data.ranged.crit.max_damage or 0, entry.damage_data.ranged.crit.count or 0))
                 end
                 if entry.damage_data.ranged.non_crit and entry.damage_data.ranged.non_crit.count > 0 then
                     local var = entry.damage_data.ranged.non_crit.max_damage - entry.damage_data.ranged.non_crit.min_damage
                     local var_pct = entry.damage_data.ranged.non_crit.min_damage > 0 and (var / entry.damage_data.ranged.non_crit.min_damage * 100) or 0
                     local capped = is_capped(entry.damage_data.ranged.non_crit, var_pct)
-                    windower.add_to_chat(207, string.format('     Non-Crit: %s | Avg: %d | Count: %d', capped and 'CAPPED' or 'Uncapped', math.floor(entry.damage_data.ranged.non_crit.avg or 0), entry.damage_data.ranged.non_crit.count or 0))
+                    windower.add_to_chat(207, string.format('     Non-Crit: %s | Avg: %d | Min: %d | Max: %d | Count: %d', capped and 'CAPPED' or 'Uncapped', math.floor(entry.damage_data.ranged.non_crit.avg or 0), entry.damage_data.ranged.non_crit.min_damage or 0, entry.damage_data.ranged.non_crit.max_damage or 0, entry.damage_data.ranged.non_crit.count or 0))
                 end
             end
             
@@ -161,7 +161,7 @@ function show_history()
                 local var = entry.damage_data.ws.max_damage - entry.damage_data.ws.min_damage
                 local var_pct = entry.damage_data.ws.min_damage > 0 and (var / entry.damage_data.ws.min_damage * 100) or 0
                 local capped = is_capped(entry.damage_data.ws, var_pct)
-                windower.add_to_chat(207, string.format('     %s | Avg: %d | Count: %d', capped and 'CAPPED' or 'Uncapped', math.floor(entry.damage_data.ws.avg or 0), entry.damage_data.ws.count or 0))
+                windower.add_to_chat(207, string.format('     %s | Avg: %d | Min: %d | Max: %d | Count: %d', capped and 'CAPPED' or 'Uncapped', math.floor(entry.damage_data.ws.avg or 0), entry.damage_data.ws.min_damage or 0, entry.damage_data.ws.max_damage or 0, entry.damage_data.ws.count or 0))
             end
         end
     end
@@ -228,15 +228,19 @@ windower.register_event('addon command', function(command, ...)
     elseif command == 'show' or command == 'hide' then
         settings.visible = not settings.visible
         update_display()
+        config.save(settings, settings_file)
     elseif command == 'melee' then
         settings.melee = not settings.melee
         update_display()
+        config.save(settings, settings_file)
     elseif command == 'ranged' then
         settings.ranged = not settings.ranged
         update_display()
+        config.save(settings, settings_file)
     elseif command == 'ws' then
         settings.ws = not settings.ws
         update_display()
+        config.save(settings, settings_file)
     elseif command == 'reset' then
         damage_data = T{
             melee = T{
@@ -251,7 +255,6 @@ windower.register_event('addon command', function(command, ...)
         }
         update_display()
     end
-    config.save(settings, settings_file)
 end)
 
 windower.register_event('action', function(act)
