@@ -51,10 +51,6 @@ local weapon_ranks = {
     [27] = 27, -- Throwing
 }
 
-function get_weapon_rank(skill_id)
-    return weapon_ranks[skill_id] or 1
-end
-
 local damage_data = T{
     melee = T{
         crit = T{ capped = false, pdif = 0, max_damage = 0, min_damage = 99999, count = 0, sum = 0, avg = 0 },
@@ -77,102 +73,6 @@ local target = nil
 local last_target_data = nil  -- Stores data from the last target before change
 local target_history = T{}  -- Stores the last 50 targets
 local MAX_HISTORY = 50
-
-function get_player_attack()
-    if not player or not player.vitals then return 0 end
-    local str = player.vitals.str or 0
-    local equipment = player.equipment
-    if not equipment then return 8 + str end
-    local main_weapon_id = equipment.main or 0
-    local weapon_dmg = 0
-    
-    if main_weapon_id and main_weapon_id ~= 0 then
-        local item = res.items[main_weapon_id]
-        if item then weapon_dmg = item.damage or 0 end
-    end
-
-    -- Base attack: 8 + STR + weapon damage + gear attack bonus
-    local attack = 8 + str + weapon_dmg
-    
-    -- Add gear attack (simplified - would need full gear parsing for full accuracy)
-    -- For now, estimate from equipped items
-    return attack
-end
-
-function get_base_damage()
-    if not player or not player.vitals then return 1 end
-    local str = player.vitals.str or 0
-    local equipment = player.equipment
-    if not equipment then return 1 end
-    local main_weapon_id = equipment.main or 0
-    local weapon_dmg = 0
-    local skill_id = 1
-    
-    if main_weapon_id and main_weapon_id ~= 0 then
-        local item = res.items[main_weapon_id]
-        if item then 
-            weapon_dmg = item.damage or 0
-            skill_id = item.skill or 1
-        end
-    end
-
-    local weapon_rank = get_weapon_rank(skill_id)
-    local fstr = math.floor((str - weapon_rank) * 9 / 8)
-    if fstr < 0 then fstr = 0 end
-
-    local base_dmg = weapon_dmg + fstr
-    -- Ensure minimum of 1 to avoid division by zero
-    return math.max(base_dmg, 1)
-end
-
-function calculate_pdif(damage, base_dmg, multiplier)
-    -- Guard against division by zero
-    if base_dmg <= 0 or multiplier <= 0 then
-        return 0
-    end
-    -- Damage = floor(floor(base_dmg * pdif) * multiplier)
-    -- To find pdif, approximate
-    local effective_dmg = damage / multiplier
-    local pdif = effective_dmg / base_dmg
-    -- Clamp to reasonable values
-    if pdif ~= pdif or pdif == math.huge or pdif == -math.huge then
-        return 0
-    end
-    return pdif
-end
-
-function get_multiplier()
-    if not player then return 1 end
-    local buffs = player.buffs
-    local multi = 1
-    -- Berserk: 1.5
-    if table.contains(buffs, 1) then multi = multi * 1.5 end
-    -- Aggressor: 1.25 (physical damage)
-    if table.contains(buffs, 2) then multi = multi * 1.25 end
-    -- Haste: ~1.25 (affects attack speed, not direct dmg multiplier)
-    -- Warcry and other buffs add attack, not multiplier
-    return multi
-end
-
-function get_attack_buffs()
-    if not player then return '' end
-    local buffs = player.buffs
-    local buff_text = ''
-    local buff_names = T{
-        [1] = 'Berserk',
-        [2] = 'Aggressor',
-        [8] = 'Haste',
-        [18] = 'Protect',
-        [19] = 'Shell',
-        [176] = 'Aftermath',
-    }
-    for _, buff_id in ipairs(buffs) do
-        if buff_names[buff_id] then
-            buff_text = buff_text .. buff_names[buff_id] .. ' '
-        end
-    end
-    return buff_text ~= '' and buff_text or 'None'
-end
 
 function is_capped(damage_type_data, variance_pct)
     -- If variance is close to 5%, likely capped (randomizer range)
@@ -274,8 +174,6 @@ function update_display()
         return
     end
     
-    local player_attack = get_player_attack()
-    local buffs = get_attack_buffs()
     local enemy_name = enemy_data.name or 'Unknown'
     local enemy_level = enemy_data.level or 0
     local text = 'Enemy: ' .. enemy_name .. ' (Lvl ' .. enemy_level .. ')\n'
@@ -369,9 +267,6 @@ windower.register_event('action', function(act)
         end
     end
     
-    local base_dmg = get_base_damage()
-    local multiplier = get_multiplier()
-    
     if act.category == 1 then -- Melee
         for _, target in ipairs(act.targets) do
             for _, action in ipairs(target.actions) do
@@ -390,7 +285,6 @@ windower.register_event('action', function(act)
                         data.count = data.count + 1
                         data.sum = data.sum + damage
                         data.avg = data.sum / data.count
-                        data.pdif = calculate_pdif(data.avg, base_dmg, multiplier)
                     end
                 end
             end
@@ -414,7 +308,6 @@ windower.register_event('action', function(act)
                         data.count = data.count + 1
                         data.sum = data.sum + damage
                         data.avg = data.sum / data.count
-                        data.pdif = calculate_pdif(data.avg, base_dmg, multiplier)
                     end
                 end
             end
@@ -430,7 +323,6 @@ windower.register_event('action', function(act)
                         damage_data.ws.count = damage_data.ws.count + 1
                         damage_data.ws.sum = damage_data.ws.sum + damage
                         damage_data.ws.avg = damage_data.ws.sum / damage_data.ws.count
-                        damage_data.ws.pdif = calculate_pdif(damage_data.ws.avg, base_dmg, multiplier)
                     end
                 end
             end
